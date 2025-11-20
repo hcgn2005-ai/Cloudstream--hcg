@@ -1,12 +1,14 @@
 {
-  "name": "hcgn2005-ai Test",
+  "name": "hcgn2005-ai Repository",
   "version": 1,
+  "description": "Repository by hcgn2005-ai",
   "plugins": [
     {
-      "name": "Test Plugin",
+      "name": "VidBox by hcgn2005-ai",
       "version": "1.0.0",
-      "file": "test-plugin.jar",
-      "description": "Test plugin"
+      "file": "hcgn2005-ai-vidbox-plugin.jar",
+      "description": "Stream from VidBox - by hcgn2005-ai",
+      "language": "en"
     }
   ]
 }
