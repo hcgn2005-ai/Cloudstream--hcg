@@ -1,25 +1,18 @@
-package com.mystream.plugin
+package com.hcg2005ai.vidbox.plugin
 
-import com.lagradost.cloudstream3.MainPlugin
+import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
+import android.content.Context
 
 /**
- * Main plugin class for MyStreamPlugin.
- * This plugin provides streaming capabilities for movies and TV shows.
+ * Main plugin class for hcg2005-ai VidBox Plugin.
+ * This plugin provides streaming capabilities for movies and TV shows from vidbox.cc.
+ * Created by: hcg2005-ai
  */
-@Plugin
-class MainPlugin : MainPlugin() {
-    override val name: String = "MyStreamPlugin"
-    override val version: String = "1.0.0"
-    override val description: String = "Streams movies and TV shows from MyStream API."
-
-    override fun registerProviders() {
-        // Register the main provider
-        registerProvider(MainProvider())
-    }
-
-    override fun onPluginLoaded() {
-        // Optional: Initialization logic, e.g., logging or setup
-        println("$name plugin loaded successfully.")
+@CloudstreamPlugin
+class Hcg2005AiVidBoxPlugin: Plugin() {
+    override fun load(context: Context) {
+        // Register all providers
+        registerMainAPI(Hcg2005AiVidBoxProvider())
     }
 }
