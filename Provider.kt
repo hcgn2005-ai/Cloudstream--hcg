@@ -1,132 +1,214 @@
-package com.mystream.plugin
+package com.hcg2005ai.vidbox.plugin
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.*
 import org.jsoup.Jsoup
-import java.net.URL
 
 /**
- * Main provider class for MyStreamPlugin.
- * Handles searching, loading home page content, and extracting video URLs.
+ * VidBox Provider for CloudStream
+ * Created by: hcg2005-ai
+ * Source: https://vidbox.cc/
  */
-class MainProvider : MainAPI() {
-    override val name: String = "MyStream"
-    override val mainUrl: String = "https://api.mystream.com"  // Base URL for the streaming source
-    override val supportedTypes: Set<TvType> = setOf(TvType.Movie, TvType.TvSeries)
+class Hcg2005AiVidBoxProvider : MainAPI() {
+    override var mainUrl = "https://vidbox.cc"
+    override var name = "hcg2005-ai VidBox"
+    override val hasMainPage = true
+    override val hasQuickSearch = true
+    override val hasChromecastSupport = true
+    
+    override var lang = "en"
+    
+    override val supportedTypes = setOf(
+        TvType.Movie,
+        TvType.TvSeries
+    )
 
-    // Optional: Define categories for browsing
-    override val hasMainPage: Boolean = true
-    override val hasSearch: Boolean = true
-
-    /**
-     * Loads the main page with categories like "Popular Movies" and "Top TV Shows".
-     */
-    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        return try {
-            val homePageList = mutableListOf<HomePageList>()
-
-            // Example: Load popular movies
-            val movies = loadMoviesFromAPI("$mainUrl/movies/popular?page=$page")
-            homePageList.add(HomePageList("Popular Movies", movies))
-
-            // Example: Load top TV shows
-            val tvShows = loadTVShowsFromAPI("$mainUrl/tv/top?page=$page")
-            homePageList.add(HomePageList("Top TV Shows", tvShows))
-
-            HomePageResponse(homePageList)
-        } catch (e: Exception) {
-            // Error handling: Return empty list on failure
-            println("Error loading main page: ${e.message}")
-            HomePageResponse(emptyList())
-        }
-    }
-
-    /**
-     * Searches for content based on a query.
-     */
-    override suspend fun search(query: String): List<SearchResponse> {
-        return try {
-            val results = mutableListOf<SearchResponse>()
-            // Simulate API call (replace with actual scraping)
-            val doc = Jsoup.connect("$mainUrl/search?q=$query").get()
-            doc.select(".item").forEach { element ->
-                val title = element.select(".title").text()
-                val url = element.select("a").attr("href")
-                val posterUrl = element.select("img").attr("src")
-                val type = if (url.contains("/tv/")) TvType.TvSeries else TvType.Movie
-                results.add(
-                    SearchResponse(
-                        name = title,
-                        url = url,
-                        apiName = this.name,
-                        type = type,
-                        posterUrl = posterUrl
-                    )
-                )
+    // Main page with featured content
+    override suspend fun getMainPage(): HomePageResponse {
+        val items = ArrayList<HomePageList>()
+        
+        try {
+            // Try to get featured content
+            val document = app.get(mainUrl).document
+            
+            // Featured section - adjust selectors based on actual website
+            val featuredElements = document.select(".featured-movies .movie-item, .slider-item, .featured-item")
+            val featuredList = featuredElements.mapNotNull { element ->
+                parseSearchResult(element)
             }
-            results
+            
+            if (featuredList.isNotEmpty()) {
+                items.add(HomePageList("Featured Content", featuredList))
+            }
+            
+            // Latest movies section
+            val latestElements = document.select(".latest-movies .movie-item, .new-releases .item, .movie-list .item")
+            val latestList = latestElements.mapNotNull { element ->
+                parseSearchResult(element)
+            }
+            
+            if (latestList.isNotEmpty()) {
+                items.add(HomePageList("Latest Releases", latestList))
+            }
+            
         } catch (e: Exception) {
-            // Error handling: Return empty list on failure
-            println("Error searching: ${e.message}")
-            emptyList()
+            e.printStackTrace()
+        }
+        
+        return HomePageResponse(items)
+    }
+
+    // Helper function to parse search results
+    private fun parseSearchResult(element: org.jsoup.nodes.Element): SearchResponse? {
+        return try {
+            val titleElement = element.select(".title, h3, h4, [class*='title']").first()
+            val linkElement = element.select("a").first()
+            val imageElement = element.select("img").first()
+            
+            val title = titleElement?.text() ?: "Unknown Title"
+            var href = linkElement?.attr("href") ?: ""
+            val poster = imageElement?.attr("src") ?: ""
+            
+            // Ensure href is absolute URL
+            if (href.isNotEmpty() && !href.startsWith("http")) {
+                href = if (href.startsWith("/")) {
+                    mainUrl + href
+                } else {
+                    "$mainUrl/$href"
+                }
+            }
+            
+            if (title.isNotEmpty() && href.isNotEmpty()) {
+                MovieSearchResponse(
+                    name = title,
+                    url = href,
+                    apiName = this.name,
+                    type = TvType.Movie, // Default to movie, adjust in load() if needed
+                    posterUrl = poster
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
-    /**
-     * Loads detailed information for a specific item (e.g., movie or TV show).
-     */
-    override suspend fun load(url: String): LoadResponse {
-        return try {
-            val doc = Jsoup.connect(url).get()
-            val title = doc.select(".title").text()
-            val description = doc.select(".description").text()
-            val posterUrl = doc.select("img.poster").attr("src")
-            val type = if (url.contains("/tv/")) TvType.TvSeries else TvType.Movie
+    // Search functionality
+    override suspend fun search(query: String): List<SearchResponse> {
+        val results = ArrayList<SearchResponse>()
+        
+        try {
+            val searchUrl = "$mainUrl/search?q=${query.encodeURL()}"
+            val document = app.get(searchUrl).document
+            
+            document.select(".movie-item, .search-result, .item, [class*='movie']").forEach { element ->
+                parseSearchResult(element)?.let { results.add(it) }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        return results
+    }
 
-            if (type == TvType.TvSeries) {
-                // For TV shows, load episodes
-                val episodes = mutableListOf<Episode>()
-                doc.select(".episode").forEach { ep ->
+    // Quick search for suggestions
+    override suspend fun quickSearch(query: String): List<SearchResponse> {
+        return search(query)
+    }
+
+    // Load content details
+    override suspend fun load(url: String): LoadResponse? {
+        return try {
+            val document = app.get(url).document
+            
+            val title = document.select("h1, .title, [class*='title']").first()?.text() ?: "Unknown Title"
+            val poster = document.select(".poster img, .cover img, [class*='poster'] img").attr("src")
+            val description = document.select(".description, .synopsis, .plot, [class*='desc']").text()
+            
+            // Try to extract year from various possible locations
+            val yearText = document.select(".year, .release-date, [class*='year']").text()
+            val year = Regex("\\d{4}").find(yearText)?.value?.toIntOrNull()
+            
+            // Check if it's a series by looking for episodes
+            val episodeElements = document.select(".episode-list a, .episode-item, [class*='episode'] a")
+            val episodes = ArrayList<Episode>()
+            
+            episodeElements.forEachIndexed { index, episodeElement ->
+                val episodeUrl = episodeElement.attr("href")
+                val episodeName = episodeElement.text()
+                
+                if (episodeUrl.isNotEmpty()) {
+                    val fullEpisodeUrl = if (episodeUrl.startsWith("http")) episodeUrl else "$mainUrl$episodeUrl"
                     episodes.add(
                         Episode(
-                            name = ep.select(".ep-title").text(),
-                            data = ep.select("a").attr("href"),
-                            episode = ep.attr("data-episode").toIntOrNull() ?: 1,
-                            season = ep.attr("data-season").toIntOrNull() ?: 1
+                            data = fullEpisodeUrl,
+                            name = episodeName.ifEmpty { "Episode ${index + 1}" },
+                            episode = index + 1
                         )
                     )
                 }
+            }
+            
+            if (episodes.isNotEmpty()) {
+                // It's a TV series
                 TvSeriesLoadResponse(
                     name = title,
                     url = url,
                     apiName = this.name,
-                    type = type,
-                    episodes = episodes,
-                    posterUrl = posterUrl,
-                    plot = description
+                    type = TvType.TvSeries,
+                    posterUrl = poster,
+                    year = year,
+                    plot = description,
+                    episodes = episodes
                 )
             } else {
-                // For movies
+                // It's a movie - look for direct video links
+                val videoElements = document.select("video, [class*='video'] source, [data-video]")
+                val movieLinks = ArrayList<Episode>()
+                
+                videoElements.forEachIndexed { index, videoElement ->
+                    val videoUrl = videoElement.attr("src") ?: videoElement.attr("data-video")
+                    if (videoUrl.isNotEmpty()) {
+                        movieLinks.add(
+                            Episode(
+                                data = videoUrl,
+                                name = "Play",
+                                episode = 1
+                            )
+                        )
+                    }
+                }
+                
+                // If no direct video links found, use the detail page URL
+                if (movieLinks.isEmpty()) {
+                    movieLinks.add(
+                        Episode(
+                            data = url,
+                            name = "Play Movie",
+                            episode = 1
+                        )
+                    )
+                }
+                
                 MovieLoadResponse(
                     name = title,
                     url = url,
                     apiName = this.name,
-                    type = type,
-                    dataUrl = url,  // URL for video extraction
-                    posterUrl = posterUrl,
-                    plot = description
+                    type = TvType.Movie,
+                    posterUrl = poster,
+                    year = year,
+                    plot = description,
+                    episodes = movieLinks
                 )
             }
         } catch (e: Exception) {
-            // Error handling: Throw or return a default response
-            throw Exception("Failed to load content: ${e.message}")
+            e.printStackTrace()
+            null
         }
     }
 
-    /**
-     * Extracts video URLs from the loaded data.
-     */
+    // Load video URLs
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -134,37 +216,56 @@ class MainProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         return try {
-            // Simulate video URL extraction (replace with actual logic, e.g., parsing JSON or scraping)
-            val videoUrl = "$mainUrl/video/$data.mp4"  // Example: Construct video URL
-            callback(
-                ExtractorLink(
-                    source = this.name,
-                    name = this.name,
-                    url = videoUrl,
-                    referer = mainUrl,
-                    quality = Qualities.Unknown.value  // Or specify e.g., Qualities.HD.value
+            // If data is already a direct video URL
+            if (data.contains(".mp4") || data.contains(".m3u8")) {
+                callback(
+                    ExtractorLink(
+                        name = this.name,
+                        source = "hcg2005-ai VidBox",
+                        url = data,
+                        quality = Qualities.Unknown.value,
+                        isM3u8 = data.contains(".m3u8")
+                    )
                 )
+                return true
+            }
+            
+            // Otherwise, extract from the page
+            val response = app.get(data).text
+            
+            // Look for various video URL patterns
+            val videoPatterns = listOf(
+                Regex("""file:\s*["']([^"']+\.(?:mp4|m3u8)[^"']*)["']"""),
+                Regex("""src:\s*["']([^"']+\.(?:mp4|m3u8)[^"']*)["']"""),
+                Regex("""video\s+src=["']([^"']+)["']"""),
+                Regex("""<source\s+src=["']([^"']+\.(?:mp4|m3u8)[^"']*)["']""")
             )
-            true  // Success
+            
+            var foundLinks = false
+            videoPatterns.forEach { pattern ->
+                val matches = pattern.findAll(response)
+                matches.forEach { match ->
+                    val videoUrl = match.groupValues[1]
+                    if (videoUrl.isNotEmpty() && (videoUrl.contains("http") || videoUrl.startsWith("//"))) {
+                        val fullUrl = if (videoUrl.startsWith("//")) "https:$videoUrl" else videoUrl
+                        callback(
+                            ExtractorLink(
+                                name = "hcg2005-ai VidBox",
+                                source = this.name,
+                                url = fullUrl,
+                                quality = Qualities.Unknown.value,
+                                isM3u8 = fullUrl.contains(".m3u8")
+                            )
+                        )
+                        foundLinks = true
+                    }
+                }
+            }
+            
+            foundLinks
         } catch (e: Exception) {
-            // Error handling: Log and return false
-            println("Error loading links: ${e.message}")
+            e.printStackTrace()
             false
         }
-    }
-
-    // Helper functions (replace with actual API calls or scraping)
-    private suspend fun loadMoviesFromAPI(url: String): List<SearchResponse> {
-        // Placeholder: Implement actual data fetching
-        return listOf(
-            SearchResponse("Sample Movie", "$mainUrl/movie/1", this.name, TvType.Movie, posterUrl = "https://example.com/poster.jpg")
-        )
-    }
-
-    private suspend fun loadTVShowsFromAPI(url: String): List<SearchResponse> {
-        // Placeholder: Implement actual data fetching
-        return listOf(
-            SearchResponse("Sample TV Show", "$mainUrl/tv/1", this.name, TvType.TvSeries, posterUrl = "https://example.com/poster.jpg")
-        )
     }
 }
