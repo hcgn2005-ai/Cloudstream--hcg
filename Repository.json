@@ -3,14 +3,12 @@
   "version": 1,
   "description": "VidBox streaming repository for CloudStream by hcg2005-ai",
   "icon": "https://vidbox.cc/favicon.ico",
-  "author": "hcg2005-ai",
   "plugins": [
     {
       "name": "hcg2005-ai VidBox Plugin",
       "version": "1.0.0",
-      "file": "hcg2005-ai-vidbox-plugin.jar",
-      "description": "Stream movies and TV shows from VidBox - by hcg2005-ai",
-      "source": "https://your-repo-url.com/plugins/hcg2005-ai-vidbox-plugin.jar"
+      "file": "https://raw.githubusercontent.com/hcg2005-ai/cloudstream-repo/main/plugins/hcg2005-ai-vidbox-plugin.jar",
+      "description": "Stream movies and TV shows from VidBox - by hcg2005-ai"
     }
   ]
 }
