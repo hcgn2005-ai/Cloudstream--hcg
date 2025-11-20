@@ -1,14 +1,22 @@
 {
   "name": "hcgn2005-ai Repository",
   "version": 1,
-  "description": "Streaming repository by hcgn2005-ai",
+  "description": "Repository by hcgn2005-ai",
   "plugins": [
     {
+      "url": "https://raw.githubusercontent.com/hcgn2005-ai/Cloudstream--hcg/main/hcgn2005-ai-vidbox-plugin.cs3",
+      "status": 1,
+      "version": 1,
+      "apiVersion": 1,
       "name": "VidBox by hcgn2005-ai",
-      "version": "1.0.0",
-      "file": "hcgn2005-ai-vidbox-plugin.jar",
-      "description": "Stream movies and TV shows from VidBox",
-      "language": "en"
+      "internalName": "VidBoxProvider",
+      "authors": ["hcgn2005-ai"],
+      "description": "Stream from VidBox - by hcgn2005-ai",
+      "repositoryUrl": "https://github.com/hcgn2005-ai/Cloudstream--hcg",
+      "tvTypes": ["Movie"],
+      "language": "en",
+      "iconUrl": null,
+      "isAdult": false
     }
   ]
 }
