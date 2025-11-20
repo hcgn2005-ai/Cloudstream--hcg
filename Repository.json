@@ -9,7 +9,7 @@
       "version": "1.0.0",
       "description": "A plugin to stream movies and TV shows from vidbox.cc.",
       "url": "https://github.com/yourusername/VidBoxPlugin/releases/download/v1.0.0/VidBoxPlugin.jar",
-      "iconUrl": "https://vidbox.cc/favicon.ico"  // Optional: Use site's favicon or a custom icon
+      "iconUrl": "https://vidbox.cc/favicon.ico" 
     }
   ]
 }
